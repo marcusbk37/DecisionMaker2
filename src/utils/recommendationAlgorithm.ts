@@ -1,5 +1,6 @@
 import { YogurtFlavor } from '../types/yogurt';
 import { supabase } from '../lib/supabase';
+import { ThompsonSampler } from './thompsonsampling';
 
 // Sample flavors data for recommendations
 const sampleFlavors = [
@@ -119,9 +120,14 @@ export const getRecommendation = async (): Promise<YogurtFlavor> => {
       }));
 
       if (flavors.length > 0) {
+        // Use thompson sampling to get the recommendation
+        const thompsonSampler = new ThompsonSampler(flavors.length);
+        const chosenFlavorIndex = thompsonSampler.sample();
+        return flavors[chosenFlavorIndex];
+
         // Simple recommendation: return a random flavor
-        const randomIndex = Math.floor(Math.random() * flavors.length);
-        return flavors[randomIndex];
+        // const randomIndex = Math.floor(Math.random() * flavors.length);
+        // return flavors[randomIndex];
       }
     }
 

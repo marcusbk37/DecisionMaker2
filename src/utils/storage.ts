@@ -42,7 +42,7 @@ export const saveRating = async (rating: YogurtRating): Promise<void> => {
           await updateRatingsArray(data[0].id, rating.rating);
         }
       } else {
-        // Insert new record
+        // Insert new record - I don't know when you would have to do this
         const { data, error } = await supabase
           .from('user_ratings')
           .insert({
@@ -180,5 +180,51 @@ export const clearData = async (): Promise<void> => {
     localStorage.removeItem('yogurt_history');
   } catch (error) {
     console.error('Error clearing data:', error);
+  }
+};
+
+export const addNewFlavor = async (
+  flavorName: string,
+  description: string
+): Promise<void> => {
+  try {
+    // Check if user is authenticated
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('Must be authenticated to add new flavors');
+    }
+
+    // Check if flavor already exists
+    const { data: existingFlavor } = await supabase
+      .from('user_ratings')
+      .select('id')
+      .eq('flavor_name', flavorName)
+      .single();
+
+    if (existingFlavor) {
+      throw new Error('This flavor already exists');
+    }
+
+    // Add the new flavor
+    const { error } = await supabase
+      .from('user_ratings')
+      .insert({
+        user_id: user.id,
+        flavor_name: flavorName,
+        flavor_description: description,
+        user_rating: 0, // No rating yet - and can use this 0 to see that (because there is no other way to rate a 0)
+        ratings_array: [1,1,1,1,1,1,1,1,1,1,1] // Initialize with 1s for new records
+      });
+
+    if (error) {
+      console.error('Error adding new flavor:', error);
+      throw error;
+    }
+
+    console.log('New flavor added successfully');
+  } catch (error) {
+    console.error('Error in addNewFlavor:', error);
+    throw error;
   }
 };

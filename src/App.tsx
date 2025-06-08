@@ -5,10 +5,11 @@ import AuthModal from './components/AuthModal';
 import RecommendationCard from './components/RecommendationCard';
 import RatingComponent from './components/RatingComponent';
 import YogurtHistoryComponent from './components/YogurtHistory';
+import AddFlavorModal from './components/AddFlavorModal';
 import { getRecommendation } from './utils/recommendationAlgorithm';
-import { saveRating, getHistory } from './utils/storage';
+import { saveRating, getHistory, addNewFlavor } from './utils/storage';
 import { YogurtFlavor, YogurtHistory } from './types/yogurt';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Plus } from 'lucide-react';
 
 function AppContent() {
   const [currentFlavor, setCurrentFlavor] = useState<YogurtFlavor | null>(null);
@@ -18,6 +19,7 @@ function AppContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAddFlavorModal, setShowAddFlavorModal] = useState(false);
 
   useEffect(() => {
     loadInitialData();
@@ -85,6 +87,18 @@ function AppContent() {
     }
   };
 
+  const handleAddFlavor = async (flavorName: string, description: string) => {
+    try {
+      await addNewFlavor(flavorName, description);
+      // Refresh recommendations after adding new flavor
+      const newFlavor = await getRecommendation();
+      setCurrentFlavor(newFlavor);
+    } catch (err: any) {
+      setError(err.message || 'Failed to add new flavor. Please try again.');
+      console.error('Error adding new flavor:', err);
+    }
+  };
+
   const toggleHistory = () => {
     setShowHistory(!showHistory);
   };
@@ -106,7 +120,10 @@ function AppContent() {
         <div className="text-center p-8">
           <p className="text-red-600 mb-4">{error}</p>
           <button
-            onClick={loadInitialData}
+            onClick={() => {
+              setError(null);
+              loadInitialData();
+            }}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
           >
             Try Again
@@ -117,71 +134,77 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-100 to-white">
-      <div className="container mx-auto px-4 py-8">
-        <Header onAuthClick={handleAuthClick} />
-        
-        <div className="mt-8 mb-12">
-          {isLoading ? (
-            <div className="flex justify-center items-center h-40">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            </div>
-          ) : (
-            currentFlavor && (
-              <>
-                {isRating ? (
-                  <RatingComponent 
-                    flavor={currentFlavor} 
-                    onRated={handleRated}
-                    onSkip={handleSkip}
-                  />
-                ) : (
-                  <RecommendationCard 
-                    flavor={currentFlavor} 
-                    onRate={handleRateClick} 
-                  />
-                )}
-              </>
-            )
-          )}
+    <div className="min-h-screen bg-gradient-to-b from-purple-100 to-white p-4">
+      <Header onAuthClick={handleAuthClick} />
+      
+      <main className="container mx-auto max-w-4xl pt-8">
+        <div className="flex justify-between items-center mb-6">
+          <button
+            onClick={toggleHistory}
+            className="text-purple-700 hover:text-purple-800 font-medium"
+          >
+            {showHistory ? 'Hide History' : 'Show History'}
+          </button>
           
-          {!isRating && !isLoading && (
-            <div className="flex justify-center mt-4">
-              <button
-                onClick={handleNewRecommendation}
-                className="flex items-center px-4 py-2 text-sm text-purple-700 
-                         hover:text-purple-900 transition-colors duration-200
-                         focus:outline-none"
-              >
-                <RotateCcw size={16} className="mr-1" />
-                Get another recommendation
-              </button>
-            </div>
-          )}
-        </div>
-        
-        <div className="mt-8">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-bold text-purple-800">Your Flavor Journey</h2>
+          <div className="flex gap-3">
             <button
-              onClick={toggleHistory}
-              className="px-4 py-2 text-sm bg-purple-200 text-purple-800 rounded-lg
-                       hover:bg-purple-300 transition-colors duration-200
-                       focus:outline-none focus:ring-2 focus:ring-purple-400"
+              onClick={() => setShowAddFlavorModal(true)}
+              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg
+                       hover:bg-purple-700 transition-colors gap-2"
             >
-              {showHistory ? 'Hide History' : 'Show History'}
+              <Plus size={20} />
+              Add Flavor
+            </button>
+            
+            <button
+              onClick={handleNewRecommendation}
+              disabled={isLoading}
+              className="flex items-center px-4 py-2 bg-white text-purple-600 rounded-lg
+                       hover:bg-purple-50 transition-colors border-2 border-purple-200 gap-2"
+            >
+              <RotateCcw size={20} />
+              New Recommendation
             </button>
           </div>
-          
-          {showHistory && (
-            <YogurtHistoryComponent history={history} />
-          )}
         </div>
-      </div>
 
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={handleAuthModalClose} 
+        {showHistory && (
+          <div className="mb-8">
+            <YogurtHistoryComponent history={history} />
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto"></div>
+          </div>
+        ) : (
+          currentFlavor && (
+            isRating ? (
+              <RatingComponent
+                flavor={currentFlavor}
+                onRated={handleRated}
+                onSkip={handleSkip}
+              />
+            ) : (
+              <RecommendationCard
+                flavor={currentFlavor}
+                onRate={handleRateClick}
+              />
+            )
+          )
+        )}
+      </main>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={handleAuthModalClose}
+      />
+
+      <AddFlavorModal
+        isOpen={showAddFlavorModal}
+        onClose={() => setShowAddFlavorModal(false)}
+        onSubmit={handleAddFlavor}
       />
     </div>
   );
