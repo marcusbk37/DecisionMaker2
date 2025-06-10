@@ -29,9 +29,15 @@ export class ThompsonSampler {
             samples.push(expectedValue);
         }
 
-        // Return the arm with the highest sampled value
-        return samples.reduce((maxArm, value, arm, arr) => 
-            value > arr[maxArm] ? arm : maxArm, 0);
+        // Add detailed logging
+        console.log("All samples before selection:", samples);
+        const selectedArm = samples.reduce((maxArm, value, arm, arr) => {
+            console.log(`Comparing arm ${arm} (value: ${value}) with current max arm ${maxArm} (value: ${arr[maxArm]})`);
+            return value > arr[maxArm] ? arm : maxArm;
+        }, 0);
+        console.log("Selected arm:", selectedArm);
+
+        return selectedArm;
     }
 
     /**

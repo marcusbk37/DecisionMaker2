@@ -80,62 +80,45 @@ const sampleFlavors = [
 
 export const getRecommendation = async (): Promise<YogurtFlavor> => {
   try {
-    // Get aggregated ratings data from the database
+    // Get current user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError || !user) {
+      throw new Error('Must be authenticated to get recommendations');
+    }
+
+    // Get user's created flavors from the database
     const { data: ratingsData, error } = await supabase
       .from('user_ratings')
-      .select('flavor_name, flavor_description, ratings_array')
-      .limit(1000); // Get a good sample
+      .select('flavor_name, flavor_description, ratings_array, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: true }); // Order by creation time
 
     if (error) {
       console.error('Error fetching ratings data:', error);
-      // Fallback to sample data
-      return getRandomFlavor();
+      throw new Error('Failed to fetch your flavors');
     }
 
-    // Aggregate ratings by flavor
-    const flavorMap = new Map();
-    
-    if (ratingsData && ratingsData.length > 0) {
-      ratingsData.forEach(record => {
-        const key = record.flavor_name;
-        if (!flavorMap.has(key)) {
-          flavorMap.set(key, {
-            name: record.flavor_name,
-            description: record.flavor_description,
-            ratings: [...record.ratings_array]
-          });
-        } else {
-          // Aggregate ratings arrays
-          const existing = flavorMap.get(key);
-          for (let i = 0; i < existing.ratings.length; i++) {
-            existing.ratings[i] += record.ratings_array[i] || 0;
-          }
-        }
-      });
-
-      // Convert to array and add IDs
-      const flavors = Array.from(flavorMap.values()).map((flavor, index) => ({
-        id: (index + 1).toString(),
-        ...flavor
-      }));
-
-      if (flavors.length > 0) {
-        // Use thompson sampling to get the recommendation
-        const thompsonSampler = new ThompsonSampler(flavors.length);
-        const chosenFlavorIndex = thompsonSampler.sample();
-        return flavors[chosenFlavorIndex];
-
-        // Simple recommendation: return a random flavor
-        // const randomIndex = Math.floor(Math.random() * flavors.length);
-        // return flavors[randomIndex];
-      }
+    if (!ratingsData || ratingsData.length === 0) {
+      throw new Error('No flavors found. Try adding some flavors first!');
     }
 
-    // Fallback to sample data if no database data
-    return getRandomFlavor();
-  } catch (error) {
+    // Convert to array and add IDs - no need for Map since we're not aggregating anymore
+    const flavors = ratingsData.map((record, index) => ({
+      id: (index + 1).toString(),
+      name: record.flavor_name,
+      description: record.flavor_description,
+      ratings: record.ratings_array
+    }));
+
+    // Use thompson sampling to get the recommendation
+    const thompsonSampler = new ThompsonSampler(flavors.length);
+    const chosenFlavorIndex = thompsonSampler.sample();
+    return flavors[chosenFlavorIndex];
+
+  } catch (error: any) {
     console.error('Error in getRecommendation:', error);
-    return getRandomFlavor();
+    throw error;
   }
 };
 
@@ -150,13 +133,20 @@ export const getFlavorById = async (id: string): Promise<YogurtFlavor | undefine
 };
 
 export const getFlavorByName = async (name: string): Promise<YogurtFlavor | undefined> => {
-  // Try to get from database first
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('Must be authenticated to view flavors');
+  }
+
+  // Try to get from database - only user's own flavors
   try {
     const { data, error } = await supabase
       .from('user_ratings')
       .select('flavor_name, flavor_description, ratings_array')
+      .eq('user_id', user.id)
       .eq('flavor_name', name)
-      .limit(1)
       .single();
 
     if (!error && data) {
@@ -171,6 +161,5 @@ export const getFlavorByName = async (name: string): Promise<YogurtFlavor | unde
     console.error('Error fetching flavor by name:', error);
   }
 
-  // Fallback to sample data
-  return sampleFlavors.find(flavor => flavor.name === name);
+  return undefined;
 };
