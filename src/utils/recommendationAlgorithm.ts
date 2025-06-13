@@ -114,6 +114,7 @@ export const getRecommendation = async (): Promise<YogurtFlavor> => {
     // Use thompson sampling to get the recommendation
     const thompsonSampler = new ThompsonSampler(flavors.length);
     const chosenFlavorIndex = thompsonSampler.sample();
+    // so in here, put the logic for if the thompson sampler returned a new pull, and then call the AI
     return flavors[chosenFlavorIndex];
 
   } catch (error: any) {

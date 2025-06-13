@@ -6,7 +6,7 @@ import RecommendationCard from './components/RecommendationCard';
 import RatingComponent from './components/RatingComponent';
 import YogurtHistoryComponent from './components/YogurtHistory';
 import AddFlavorModal from './components/AddFlavorModal';
-import { getRecommendation } from './utils/recommendationAlgorithm';
+import { getRecommendation, getFlavorByName } from './utils/recommendationAlgorithm';
 import { saveRating, getHistory, addNewFlavor } from './utils/storage';
 import { YogurtFlavor, YogurtHistory } from './types/yogurt';
 import { RotateCcw, Plus } from 'lucide-react';
@@ -90,9 +90,14 @@ function AppContent() {
   const handleAddFlavor = async (flavorName: string, description: string) => {
     try {
       await addNewFlavor(flavorName, description);
-      // Refresh recommendations after adding new flavor
-      const newFlavor = await getRecommendation();
-      setCurrentFlavor(newFlavor);
+      // Set the current flavor to the newly added one
+      const newFlavor = await getFlavorByName(flavorName);
+      if (newFlavor) {
+        setCurrentFlavor(newFlavor);
+        setShowAddFlavorModal(false);
+        // Show rating component for the new flavor
+        setIsRating(true);
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to add new flavor. Please try again.');
       console.error('Error adding new flavor:', err);
